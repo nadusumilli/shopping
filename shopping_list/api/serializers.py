@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.contrib.auth.models import User
 from shopping_list.models import ShoppingItem, ShoppingList
 
 class ShoppingItemSerializer(serializers.ModelSerializer):
@@ -12,20 +13,31 @@ class ShoppingItemSerializer(serializers.ModelSerializer):
         return super(ShoppingItemSerializer, self).create(validated_data)
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username"]
+
+
 class ShoppingListSerializer(serializers.ModelSerializer):
-    shopping_items = ShoppingItemSerializer(many=True)
+    shopping_items = ShoppingItemSerializer(many=True, read_only=True)
+    members = UserSerializer(many=True, read_only=True)
 
     class Meta:
         model = ShoppingList
-        fields = ["id", "name", "shopping_items"]
+        fields = ["id", "name", "shopping_items", "members"]
         read_only_fields = ("id", )
 
     def create(self, validated_data):
-        print(validated_data)
-        items_data = validated_data.pop("shopping_items")
+        if "shopping_items" in validated_data:
+            items_data = validated_data.pop("shopping_items")
+        else:
+            items_data = []
+
         shopping_list = ShoppingList.objects.create(**validated_data)
 
         for item in items_data:
             ShoppingItem.objects.create(shopping_list=shopping_list, **item)
+
 
         return shopping_list
